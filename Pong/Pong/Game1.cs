@@ -55,6 +55,7 @@ namespace Pong
         private bool gameOver;
         private bool scored;
         private bool gameStart;
+        private bool isPaused = false;
         private string champ;
 
         // Block
@@ -152,6 +153,7 @@ namespace Pong
             timeout = true;
 
             MediaPlayer.Play(backgroundMusic);
+            MediaPlayer.IsRepeating = true;
 
             base.Initialize();
         }
@@ -201,18 +203,37 @@ namespace Pong
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
         {
-
-            // Get input
             KeyboardState keyboard = Keyboard.GetState();
             GamePadState gamePad = GamePad.GetState(PlayerIndex.One);
             GamePadState gamePad2 = GamePad.GetState(PlayerIndex.Two);
 
+            if(keyboard.IsKeyUp(Keys.P) && oldState.IsKeyDown(Keys.P))
+            {
+                isPaused = !isPaused;
+                if (isPaused)
+                    MediaPlayer.Pause();
+                else
+                    MediaPlayer.Resume();
+            }
+
+            if (keyboard.IsKeyDown(Keys.Tab) && oldState.IsKeyUp(Keys.Tab))
+            {
+                consoleDisplaying = !consoleDisplaying;
+            }
+
             // Allows the game to exit
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || 
+            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
                 GamePad.GetState(PlayerIndex.Two).Buttons.Back == ButtonState.Pressed ||
                 keyboard.IsKeyDown(Keys.Escape))
                 this.Exit();
-            
+
+            if (CurrentCharPause > CharPause)
+            {
+                previousChar = (char)0;
+                CurrentCharPause = 0;
+            }
+            CurrentCharPause += (float)gameTime.ElapsedGameTime.TotalMilliseconds;
+
             // Console
             if (consoleDisplaying)
             {
@@ -223,11 +244,11 @@ namespace Pong
                 }
                 else if (keyboard.IsKeyDown(Keys.Back) && !oldState.IsKeyDown(Keys.Back))
                 {
-                    if (test.Length > 0) 
+                    if (test.Length > 0)
                         test = test.Remove(test.Length - 1, 1);
                 }
-                else if (!keyboard.IsKeyDown(Keys.Back) 
-                    && GetKeyboardChars() != (char)0 
+                else if (!keyboard.IsKeyDown(Keys.Back)
+                    && GetKeyboardChars() != (char)0
                     && GetKeyboardChars() != previousChar)
                 {
                     char testChar = GetKeyboardChars();
@@ -237,191 +258,182 @@ namespace Pong
                 }
             }
 
-            if (CurrentCharPause > CharPause)
+            if (!isPaused)
             {
-                previousChar = (char)0;
-                CurrentCharPause = 0;
-            }
-            CurrentCharPause += (float)gameTime.ElapsedGameTime.TotalMilliseconds; 
-
-
-            if (gameStart)
-            {
-                if ((keyboard.IsKeyDown(Keys.Space) && !oldState.IsKeyDown(Keys.Space))
-                    || gamePad.IsButtonDown(Buttons.A) && !oldGamePadState.IsButtonDown(Buttons.A)
-                    || gamePad2.IsButtonDown(Buttons.A) && !oldGamePadState2.IsButtonDown(Buttons.A))
+                if (gameStart)
                 {
-                    gameStart = false;
+                    if ((keyboard.IsKeyDown(Keys.Space) && !oldState.IsKeyDown(Keys.Space))
+                        || gamePad.IsButtonDown(Buttons.A) && !oldGamePadState.IsButtonDown(Buttons.A)
+                        || gamePad2.IsButtonDown(Buttons.A) && !oldGamePadState2.IsButtonDown(Buttons.A))
+                    {
+                        gameStart = false;
+                    }
                 }
-            }
-            else if (gameOver)
-            {
-                if ((keyboard.IsKeyDown(Keys.Space) && !oldState.IsKeyDown(Keys.Space))
-                    || gamePad.IsButtonDown(Buttons.A) && !oldGamePadState.IsButtonDown(Buttons.A)
-                    || gamePad2.IsButtonDown(Buttons.A) && !oldGamePadState2.IsButtonDown(Buttons.A))
+                else if (gameOver)
                 {
-                    player1Score = 0;
-                    player2Score = 0;
-                    gameOver = false;
+                    if ((keyboard.IsKeyDown(Keys.Space) && !oldState.IsKeyDown(Keys.Space))
+                        || gamePad.IsButtonDown(Buttons.A) && !oldGamePadState.IsButtonDown(Buttons.A)
+                        || gamePad2.IsButtonDown(Buttons.A) && !oldGamePadState2.IsButtonDown(Buttons.A))
+                    {
+                        player1Score = 0;
+                        player2Score = 0;
+                        gameOver = false;
+                    }
                 }
-            }
-            else if (scored)
-            {
-                if ((keyboard.IsKeyDown(Keys.Space) && !oldState.IsKeyDown(Keys.Space))
-                    || gamePad.IsButtonDown(Buttons.A) && !oldGamePadState.IsButtonDown(Buttons.A)
-                    || gamePad2.IsButtonDown(Buttons.A) && !oldGamePadState2.IsButtonDown(Buttons.A))
+                else if (scored)
                 {
-                    scored = false;
-                }
-            }
-            else
-            {
-                // update the block
-                if (!timeout)
-                {
-                    blockPosition.X += blockXSpeed;
-                    blockPosition.Y += blockYSpeed;
+                    if ((keyboard.IsKeyDown(Keys.Space) && !oldState.IsKeyDown(Keys.Space))
+                        || gamePad.IsButtonDown(Buttons.A) && !oldGamePadState.IsButtonDown(Buttons.A)
+                        || gamePad2.IsButtonDown(Buttons.A) && !oldGamePadState2.IsButtonDown(Buttons.A))
+                    {
+                        scored = false;
+                    }
                 }
                 else
                 {
-                    spawnTimer -= (float)gameTime.ElapsedGameTime.TotalSeconds;
-
-                    if (spawnTimer <= 0)
+                    // update the block
+                    if (!timeout)
                     {
-                        timeout = false;
+                        blockPosition.X += blockXSpeed;
+                        blockPosition.Y += blockYSpeed;
+                    }
+                    else
+                    {
+                        spawnTimer -= (float)gameTime.ElapsedGameTime.TotalSeconds;
+
+                        if (spawnTimer <= 0)
+                        {
+                            timeout = false;
+                        }
+                    }
+                }
+
+                // Move the player and AI
+                if (keyboard.IsKeyDown(Keys.W) ||
+                    gamePad.DPad.Down == ButtonState.Pressed ||
+                    (gamePad.ThumbSticks.Left.Y > 0))
+                {
+                    player1Position.Y -= playerMoveSpeed;
+                }
+                if (keyboard.IsKeyDown(Keys.S) ||
+                    gamePad.DPad.Up == ButtonState.Pressed ||
+                    (gamePad.ThumbSticks.Left.Y < 0))
+                {
+                    player1Position.Y += playerMoveSpeed;
+                }
+
+
+                if (aiOn)
+                {
+                    AIMove();
+                }
+                else
+                {
+                    if (keyboard.IsKeyDown(Keys.Up) ||
+                    gamePad2.DPad.Down == ButtonState.Pressed ||
+                    (gamePad2.ThumbSticks.Left.Y > 0))
+                    {
+                        player2Position.Y -= playerMoveSpeed;
+                    }
+                    if (keyboard.IsKeyDown(Keys.Down) ||
+                        gamePad2.DPad.Up == ButtonState.Pressed ||
+                        (gamePad2.ThumbSticks.Left.Y < 0))
+                    {
+                        player2Position.Y += playerMoveSpeed;
+                    }
+                }
+
+                if (blockPosition.Y < safeBounds.Top || blockPosition.Y > (safeBounds.Bottom - blockTexture.Height))
+                {
+                    blockYSpeed *= -1;
+                }
+
+                if (blockPosition.X > Window.ClientBounds.Width)
+                {
+                    player1Score++;
+
+                    if (player1Score == 3)
+                    {
+                        gameOver = true;
+                        champ = "player1";
+                        MediaPlayer.Stop();
+
+                    }
+                    else
+                    {
+                        scored = true;
+                    }
+
+                    PlaceBlock();
+                }
+                else if (blockPosition.X < -blockTexture.Width)
+                {
+                    player2Score++;
+
+                    if (player2Score == 3)
+                    {
+                        gameOver = true;
+                        champ = "player2";
+                    }
+                    else
+                    {
+                        scored = true;
+                    }
+
+                    PlaceBlock();
+                }
+
+                // Prevent the person from moving off of the screen
+                player1Position.Y = MathHelper.Clamp(player1Position.Y, safeBounds.Top, safeBounds.Bottom - player1Texture.Height);
+
+                player2Position.Y = MathHelper.Clamp(player2Position.Y, safeBounds.Top, safeBounds.Bottom - player2Texture.Height);
+
+                // Get the bounding rectangle of the person
+                Rectangle player1Rectangle =
+                    new Rectangle((int)player1Position.X, (int)player1Position.Y,
+                    player1Texture.Width, player1Texture.Height);
+
+                Rectangle player2Rectangle =
+                    new Rectangle((int)player2Position.X, (int)player2Position.Y,
+                    player2Texture.Width, player2Texture.Height);
+
+
+                // Get the bounding rectangle of this block
+                Rectangle blockRectangle =
+                    new Rectangle((int)blockPosition.X, (int)blockPosition.Y,
+                    blockTexture.Width, blockTexture.Height);
+
+                // Check collision with person
+                if (player1Rectangle.Intersects(blockRectangle))
+                {
+                    collisionSound.Play();
+
+                    if (blockPosition.X < player1Position.X + player1Rectangle.Width / 1.5)
+                    {
+                        blockYSpeed *= -1;
+                    }
+                    else
+                    {
+                        blockXSpeed *= -1;
+                    }
+                }
+                else if (player2Rectangle.Intersects(blockRectangle))
+                {
+                    collisionSound.Play();
+
+                    if (blockPosition.X > player2Position.X)
+                    {
+                        blockYSpeed *= -1;
+                    }
+                    else
+                    {
+                        blockXSpeed *= -1;
                     }
                 }
             }
-
-            // Move the player and AI
-            if (keyboard.IsKeyDown(Keys.W) ||
-                gamePad.DPad.Down == ButtonState.Pressed || 
-                (gamePad.ThumbSticks.Left.Y > 0))
-            {
-                player1Position.Y -= playerMoveSpeed;
-            }
-            if (keyboard.IsKeyDown(Keys.S) ||
-                gamePad.DPad.Up == ButtonState.Pressed ||
-                (gamePad.ThumbSticks.Left.Y < 0))
-            {
-                player1Position.Y += playerMoveSpeed;
-            }
-
-            if (keyboard.IsKeyDown(Keys.Tab) && oldState.IsKeyUp(Keys.Tab))
-            {
-                consoleDisplaying = !consoleDisplaying;
-            }
-
-            if (aiOn)
-            {
-                AIMove();
-            }
-            else
-            {
-                if (keyboard.IsKeyDown(Keys.Up) ||
-                gamePad2.DPad.Down == ButtonState.Pressed ||
-                (gamePad2.ThumbSticks.Left.Y > 0))
-                {
-                    player2Position.Y -= playerMoveSpeed;
-                }
-                if (keyboard.IsKeyDown(Keys.Down) ||
-                    gamePad2.DPad.Up == ButtonState.Pressed ||
-                    (gamePad2.ThumbSticks.Left.Y < 0))
-                {
-                    player2Position.Y += playerMoveSpeed;
-                }
-            }
-
-            if (blockPosition.Y < safeBounds.Top || blockPosition.Y > (safeBounds.Bottom - blockTexture.Height))
-            {
-                blockYSpeed *= -1;
-            }
-
-            if (blockPosition.X > Window.ClientBounds.Width)
-            {
-                player1Score++;
-
-                if (player1Score == 3)
-                {
-                    gameOver = true;
-                    champ = "player1";
-                }
-                else
-                {
-                    scored = true;
-                }
-
-                PlaceBlock();
-            }
-            else if (blockPosition.X < -blockTexture.Width)
-            {
-                player2Score++;
-
-                if (player2Score == 3)
-                {
-                    gameOver = true;
-                    champ = "player2";
-                }
-                else
-                {
-                    scored = true;
-                }
-
-                PlaceBlock();
-            }
-
-            // Prevent the person from moving off of the screen
-            player1Position.Y = MathHelper.Clamp(player1Position.Y, safeBounds.Top, safeBounds.Bottom - player1Texture.Height);
-
-            player2Position.Y = MathHelper.Clamp(player2Position.Y, safeBounds.Top, safeBounds.Bottom - player2Texture.Height);
-
-            // Get the bounding rectangle of the person
-            Rectangle player1Rectangle =
-                new Rectangle((int)player1Position.X, (int)player1Position.Y,
-                player1Texture.Width, player1Texture.Height);
-
-            Rectangle player2Rectangle =
-                new Rectangle((int)player2Position.X, (int)player2Position.Y,
-                player2Texture.Width, player2Texture.Height);
-
-
-            // Get the bounding rectangle of this block
-            Rectangle blockRectangle =
-                new Rectangle((int)blockPosition.X, (int)blockPosition.Y,
-                blockTexture.Width, blockTexture.Height);
-
-            // Check collision with person
-            if (player1Rectangle.Intersects(blockRectangle))
-            {
-                collisionSound.Play();
-
-                if (blockPosition.X < player1Position.X + player1Rectangle.Width/1.5)
-                {
-                    blockYSpeed *= -1;
-                }
-                else
-                {
-                    blockXSpeed *= -1;
-                }
-            }
-            else if (player2Rectangle.Intersects(blockRectangle))
-            {
-                collisionSound.Play();
-
-                if (blockPosition.X > player2Position.X)
-                {
-                    blockYSpeed *= -1;
-                }
-                else
-                {
-                    blockXSpeed *= -1;
-                }
-            }
-
             oldState = keyboard;
             oldGamePadState = gamePad;
             oldGamePadState2 = gamePad2;
-
             base.Update(gameTime);
         }
 
