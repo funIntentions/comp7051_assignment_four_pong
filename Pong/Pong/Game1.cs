@@ -120,7 +120,7 @@ namespace Pong
             player1Texture = Content.Load<Texture2D>("Player1");
             player2Texture = Content.Load<Texture2D>("Player2");
             collisionSound = Content.Load<SoundEffect>("cymbolTing");
-            backgroundMusic = Content.Load<Song>("bgmusic");
+            backgroundMusic = Content.Load<Song>("Bare Necessities");
             
             // Calculate safe bounds based on current resolution
             Viewport viewport = graphics.GraphicsDevice.Viewport;
