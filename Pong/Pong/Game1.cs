@@ -210,9 +210,9 @@ namespace Pong
             if(keyboard.IsKeyUp(Keys.P) && oldState.IsKeyDown(Keys.P))
             {
                 isPaused = !isPaused;
-                if (isPaused)
+                if (isPaused && !gameStart && !gameOver && !scored)
                     MediaPlayer.Pause();
-                else
+                else if (!gameStart && !gameOver && !scored)
                     MediaPlayer.Resume();
             }
 
@@ -267,6 +267,7 @@ namespace Pong
                         || gamePad2.IsButtonDown(Buttons.A) && !oldGamePadState2.IsButtonDown(Buttons.A))
                     {
                         gameStart = false;
+                        MediaPlayer.Play(backgroundMusic);
                     }
                 }
                 else if (gameOver)
@@ -278,6 +279,7 @@ namespace Pong
                         player1Score = 0;
                         player2Score = 0;
                         gameOver = false;
+                        MediaPlayer.Play(backgroundMusic);
                     }
                 }
                 else if (scored)
@@ -287,6 +289,7 @@ namespace Pong
                         || gamePad2.IsButtonDown(Buttons.A) && !oldGamePadState2.IsButtonDown(Buttons.A))
                     {
                         scored = false;
+                        MediaPlayer.Resume();
                     }
                 }
                 else
@@ -362,6 +365,7 @@ namespace Pong
                     else
                     {
                         scored = true;
+                        MediaPlayer.Pause();
                     }
 
                     PlaceBlock();
@@ -374,10 +378,12 @@ namespace Pong
                     {
                         gameOver = true;
                         champ = "player2";
+                        MediaPlayer.Stop();
                     }
                     else
                     {
                         scored = true;
+                        MediaPlayer.Pause();
                     }
 
                     PlaceBlock();
