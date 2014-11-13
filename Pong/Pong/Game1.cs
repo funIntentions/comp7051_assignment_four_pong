@@ -152,7 +152,7 @@ namespace Pong
 
             timeout = true;
 
-            MediaPlayer.Play(backgroundMusic);
+            //MediaPlayer.Play(backgroundMusic);
             MediaPlayer.IsRepeating = true;
 
             base.Initialize();
@@ -207,7 +207,9 @@ namespace Pong
             GamePadState gamePad = GamePad.GetState(PlayerIndex.One);
             GamePadState gamePad2 = GamePad.GetState(PlayerIndex.Two);
 
-            if(keyboard.IsKeyUp(Keys.P) && oldState.IsKeyDown(Keys.P))
+            if((keyboard.IsKeyUp(Keys.P) && oldState.IsKeyDown(Keys.P))
+                || (gamePad.IsButtonUp(Buttons.Start) && oldGamePadState.IsButtonDown(Buttons.Start))
+                && !(gameOver || scored || gameStart))
             {
                 isPaused = !isPaused;
                 if (isPaused && !gameStart && !gameOver && !scored)
@@ -360,7 +362,6 @@ namespace Pong
                         gameOver = true;
                         champ = "player1";
                         MediaPlayer.Stop();
-
                     }
                     else
                     {
