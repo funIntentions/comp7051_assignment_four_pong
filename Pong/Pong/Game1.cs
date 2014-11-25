@@ -1,3 +1,7 @@
+#if WINDEMO
+#define WINDEMO
+#endif
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,6 +12,10 @@ using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Media;
+using Microsoft.Xna.Framework.Storage;
+using System.IO;
+using System.Xml;
+using System.Xml.Serialization;
 
 namespace Pong
 {
@@ -58,6 +66,11 @@ namespace Pong
         private bool isPaused = false;
         private string champ;
 
+        int[] topTenScores;
+        int startTime;
+
+        IAsyncResult result;
+
         // Block
         Vector2 blockPosition;
         int blockXSpeed;
@@ -84,6 +97,20 @@ namespace Pong
         Rectangle safeBounds;
         // Percentage of the screen on every side is the safe area
         const float SafeAreaPortion = 0.05f;
+
+        public struct SaveGameData
+        {
+            public int one;
+            public int two;
+            public int three;
+            public int four;
+            public int five;
+            public int six;
+            public int seven;
+            public int eight;
+            public int nine;
+            public int ten;
+        }
 
         Random random = new Random();
 
@@ -115,6 +142,8 @@ namespace Pong
             gameOver = false;
             gameStart = true;
             scored = false;
+            topTenScores = new int[10];
+            startTime = -1;
 
             // Load textures
             blockTexture = Content.Load<Texture2D>("Block");
@@ -154,6 +183,8 @@ namespace Pong
 
             //MediaPlayer.Play(backgroundMusic);
             MediaPlayer.IsRepeating = true;
+
+            LoadHighScores();
 
             base.Initialize();
         }
@@ -197,6 +228,198 @@ namespace Pong
         }
 
         /// <summary>
+        /// Updates the current high score.
+        /// </summary>
+        /// <param name="gameTime">The total time until the chickens were all caught.</param>
+        private void UpdateHighScore(GameTime gameTime)
+        {
+            // Write the new high score if we beat it
+            float seconds = ((float)gameTime.TotalGameTime.TotalMilliseconds - startTime) / 1000;
+
+            if (seconds <= 0) seconds = 0.0001f;
+
+            int score = (int)((1000 / seconds) * 100);
+
+            //showHighScoreMsg = true;
+            result = StorageDevice.BeginShowSelector(
+                        PlayerIndex.One, null, null);
+            StorageDevice device = StorageDevice.EndShowSelector(result);
+            if (device != null && device.IsConnected)
+            {
+                SaveGame(device, score);
+            }            
+        }
+
+        /// <summary>
+        /// Gets the current high scores.
+        /// </summary>
+        private void LoadHighScores()
+        {
+            //showHighScoreMsg = true;
+            result = StorageDevice.BeginShowSelector(
+                        PlayerIndex.One, null, null);
+            StorageDevice device = StorageDevice.EndShowSelector(result);
+            if (device != null && device.IsConnected)
+            {
+                LoadGame(device);
+            }
+
+        }
+
+        /// <summary>
+        /// This method loads a serialized data object
+        /// from the StorageContainer for this game.
+        /// </summary>
+        /// <param name="device"></param>
+        private void LoadGame(StorageDevice device)
+        {
+            // Open a storage container.
+            IAsyncResult result =
+                device.BeginOpenContainer("PongHighscores", null, null);
+
+            // Wait for the WaitHandle to become signaled.
+            result.AsyncWaitHandle.WaitOne();
+
+            StorageContainer container = device.EndOpenContainer(result);
+
+            // Close the wait handle.
+            result.AsyncWaitHandle.Close();
+
+            string filename = "highscores" + ".sav";
+
+            // Check to see whether the save exists.
+            if (!container.FileExists(filename))
+            {
+                // If not, dispose of the container and return.
+                container.Dispose();
+                return;
+            }
+
+            // Open the file.
+            Stream stream = container.OpenFile(filename, FileMode.Open);
+
+#if WINDEMO
+            // Read the data from the file.
+            XmlSerializer serializer = new XmlSerializer(typeof(SaveGameData));
+            SaveGameData data = (SaveGameData)serializer.Deserialize(stream);
+#else
+            using (StreamReader sr = new StreamReader(stream))
+            {
+                String input;
+                int i = 0;
+                while ((input = sr.ReadLine()) != null && i < 10)
+                {
+                    topTenScores[i] = Convert.ToInt32(input);
+                    i++;
+                }
+
+                sr.Close();
+            }
+#endif
+
+            // Close the file.
+            stream.Close();
+
+            // Dispose the container.
+            container.Dispose();
+
+#if WINDEMO
+            // Report the data to the console.
+            Debug.WriteLine("Name:     " + data.PlayerName);
+            Debug.WriteLine("Level:    " + data.Level.ToString());
+            Debug.WriteLine("Score:    " + data.Score.ToString());
+            Debug.WriteLine("Position: " + data.AvatarPosition.ToString());
+#endif
+        }
+
+        /// <summary>
+        /// This method serializes a data object into
+        /// the StorageContainer for this game.
+        /// </summary>
+        /// <param name="device"></param>
+        private void SaveGame(StorageDevice device, int theScore)
+        {
+            // Create the data to save.
+            SaveGameData data = new SaveGameData();
+                        
+            for (int i = 0; i < 10; i++)
+            {
+                if (topTenScores[i] < theScore)
+                {
+                    for (int j = 9; j != i; j--)
+                    {
+                        topTenScores[j] = topTenScores[j - 1];
+                    }
+
+                    topTenScores[i] = theScore;
+                    break;
+                }
+            }
+
+            int num = 0;
+            data.one = topTenScores[num++];
+            data.two = topTenScores[num++];
+            data.three = topTenScores[num++];
+            data.four = topTenScores[num++];
+            data.five = topTenScores[num++];
+            data.six = topTenScores[num++];
+            data.seven = topTenScores[num++];
+            data.eight = topTenScores[num++];
+            data.nine = topTenScores[num++];
+            data.ten = topTenScores[num++];
+            
+            // Open a storage container.
+            IAsyncResult result =
+                device.BeginOpenContainer("PongHighscores", null, null);
+
+            // Wait for the WaitHandle to become signaled.
+            result.AsyncWaitHandle.WaitOne();
+
+            StorageContainer container = device.EndOpenContainer(result);
+
+            // Close the wait handle.
+            result.AsyncWaitHandle.Close();
+
+            string filename = "highscores" + ".sav";
+
+            // Check to see whether the save exists.
+            if (container.FileExists(filename))
+                // Delete it so that we can create one fresh.
+                container.DeleteFile(filename);
+
+            // Create the file.
+            Stream stream = container.CreateFile(filename);
+
+
+            #if WINDEMO
+            // Convert the object to XML data and put it in the stream.
+            XmlSerializer serializer = new XmlSerializer(typeof(SaveGameData));
+            serializer.Serialize(stream, data);
+            #else
+            using (StreamWriter sw = new StreamWriter(stream))
+            {
+                sw.WriteLine(data.one);
+                sw.WriteLine(data.two);
+                sw.WriteLine(data.three);
+                sw.WriteLine(data.four);
+                sw.WriteLine(data.five);
+                sw.WriteLine(data.six);
+                sw.WriteLine(data.seven);
+                sw.WriteLine(data.eight);
+                sw.WriteLine(data.nine);
+                sw.WriteLine(data.ten);
+                sw.Close();
+            }
+            #endif
+
+            // Close the file.
+            stream.Close();
+
+            // Dispose the container, to commit changes.
+            container.Dispose();
+        }
+
+        /// <summary>
         /// Allows the game to run logic such as updating the world,
         /// checking for collisions, gathering input, and playing audio.
         /// </summary>
@@ -206,6 +429,11 @@ namespace Pong
             KeyboardState keyboard = Keyboard.GetState();
             GamePadState gamePad = GamePad.GetState(PlayerIndex.One);
             GamePadState gamePad2 = GamePad.GetState(PlayerIndex.Two);
+
+            if (startTime < 0)
+            {
+                startTime = (int)gameTime.TotalGameTime.TotalMilliseconds;
+            }
 
             if((keyboard.IsKeyUp(Keys.P) && oldState.IsKeyDown(Keys.P))
                 || (gamePad.IsButtonUp(Buttons.Start) && oldGamePadState.IsButtonDown(Buttons.Start))
@@ -361,6 +589,8 @@ namespace Pong
                     {
                         gameOver = true;
                         champ = "player1";
+                        UpdateHighScore(gameTime);
+                        startTime = -1;
                         MediaPlayer.Stop();
                     }
                     else
@@ -379,6 +609,8 @@ namespace Pong
                     {
                         gameOver = true;
                         champ = "player2";
+                        UpdateHighScore(gameTime);
+                        startTime = -1;
                         MediaPlayer.Stop();
                     }
                     else
@@ -604,10 +836,32 @@ namespace Pong
             if (gameStart)
             {
                 infoText = "First to 3.\nPress Spacebar or A to begin.";
+                infoText += "\n\n - High Scores - \n" +
+                    "1. " + topTenScores[0] + "\n" +
+                    "2. " + topTenScores[1] + "\n" +
+                    "3. " + topTenScores[2] + "\n" +
+                    "4. " + topTenScores[3] + "\n" +
+                    "5. " + topTenScores[4] + "\n" +
+                    "6. " + topTenScores[5] + "\n" +
+                    "7. " + topTenScores[6] + "\n" +
+                    "8. " + topTenScores[7] + "\n" +
+                    "9. " + topTenScores[8] + "\n" +
+                    "10. " + topTenScores[9];
             }
             else if (gameOver)
             {
-                infoText = champ + " is champion!\nPress Spacebar or A to play again.";
+                infoText = champ + " is champion!\nPress Spacebar or A to play again.\n";
+                infoText += "\n\n - High Scores - \n" + 
+                    "1. " + topTenScores[0] + "\n" + 
+                    "2. " + topTenScores[1] + "\n" + 
+                    "3. " + topTenScores[2] + "\n" + 
+                    "4. " + topTenScores[3] + "\n" +
+                    "5. " + topTenScores[4] + "\n" +
+                    "6. " + topTenScores[5] + "\n" + 
+                    "7. " + topTenScores[6] + "\n" + 
+                    "8. " + topTenScores[7] + "\n" + 
+                    "9. " + topTenScores[8] + "\n" + 
+                    "10. " + topTenScores[9];
             }
             else if (scored)
             {
@@ -616,7 +870,7 @@ namespace Pong
 
             if (gameOver || gameStart || scored)
             {
-                spriteBatch.DrawString(infoFont, infoText, new Vector2(safeBounds.Left + (safeBounds.Width / 5), safeBounds.Height / 2 - 50), Color.DarkGray);
+                spriteBatch.DrawString(infoFont, infoText, new Vector2(safeBounds.Left + (safeBounds.Width / 5), safeBounds.Height / 2 - 150), Color.DarkGray);
             }
 
             spriteBatch.End();
