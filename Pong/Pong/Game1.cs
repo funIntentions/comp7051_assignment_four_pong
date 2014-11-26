@@ -68,6 +68,7 @@ namespace Pong
 
         int[] topTenScores;
         int startTime;
+        int score;
 
         IAsyncResult result;
 
@@ -76,6 +77,8 @@ namespace Pong
         int blockXSpeed;
         int blockYSpeed;
         const int blockSpeed = 5;
+        bool dirChosen;
+        bool dirUp;
 
         float spawnTimeout = 1.5f;
         float spawnTimer;
@@ -145,6 +148,8 @@ namespace Pong
             topTenScores = new int[10];
             startTime = -1;
 
+            dirChosen = false;
+
             // Load textures
             blockTexture = Content.Load<Texture2D>("Block");
             player1Texture = Content.Load<Texture2D>("Player1");
@@ -176,6 +181,7 @@ namespace Pong
 
             player1Score = 0;
             player2Score = 0;
+            score = 0;
             player1ScorePos = new Vector2((float)((safeBounds.Width / 2) - (safeBounds.Width / 4)), (float)(safeBounds.Height / 6));
             player2ScorePos = new Vector2((float)((safeBounds.Width / 2) + (safeBounds.Width / 4)), (float)(safeBounds.Height / 6));
 
@@ -238,7 +244,7 @@ namespace Pong
 
             if (seconds <= 0) seconds = 0.0001f;
 
-            int score = (int)((1000 / seconds) * 100);
+            score = (int)((1000 / seconds) * 100);
 
             //showHighScoreMsg = true;
             result = StorageDevice.BeginShowSelector(
@@ -609,7 +615,6 @@ namespace Pong
                     {
                         gameOver = true;
                         champ = "player2";
-                        UpdateHighScore(gameTime);
                         startTime = -1;
                         MediaPlayer.Stop();
                     }
@@ -679,14 +684,59 @@ namespace Pong
         private void AIMove()
         {
             float yDifference = (player2Position.Y - blockPosition.Y);
+            float xDifference = Math.Abs(player2Position.X - blockPosition.X);
 
-            if (yDifference < -10)
+            if (xDifference < 225)
             {
-                player2Position.Y += playerMoveSpeed;
+                if (dirChosen) dirChosen = false;
+
+                if (yDifference < -10)
+                {
+                    player2Position.Y += playerMoveSpeed;
+                }
+                else if (yDifference > 10)
+                {
+                    player2Position.Y -= playerMoveSpeed;
+                }
             }
-            else if (yDifference > 10)
+            else if (dirChosen)
             {
-                player2Position.Y -= playerMoveSpeed;
+                //MathHelper.Clamp(player2Position.Y, safeBounds.Top, safeBounds.Bottom - player2Texture.Height);
+                if (dirUp)
+                {
+                    if (player2Position.Y != safeBounds.Top)
+                    {
+                        player2Position.Y -= playerMoveSpeed;
+                    }
+                    else
+                    {
+                        dirUp = false;
+                    }
+                }
+                else
+                {
+                    if (player2Position.Y != safeBounds.Bottom - player2Texture.Height)
+                    {
+                        player2Position.Y += playerMoveSpeed;
+                    }
+                    else
+                    {
+                        dirUp = true;
+                    }
+                }
+            }
+            else
+            {
+                if (random.NextDouble() > 0.5f)
+                {
+                    dirUp = true;
+                }
+                else
+                {
+                    dirUp = false;
+                }
+
+                dirChosen = true;
             }
         }
 
@@ -836,7 +886,8 @@ namespace Pong
             if (gameStart)
             {
                 infoText = "First to 3.\nPress Spacebar or A to begin.";
-                infoText += "\n\n - High Scores - \n" +
+                infoText += "Your Score: " + score;
+                infoText += "\n\n - Player 1 High Scores - \n" +
                     "1. " + topTenScores[0] + "\n" +
                     "2. " + topTenScores[1] + "\n" +
                     "3. " + topTenScores[2] + "\n" +
@@ -851,7 +902,8 @@ namespace Pong
             else if (gameOver)
             {
                 infoText = champ + " is champion!\nPress Spacebar or A to play again.\n";
-                infoText += "\n\n - High Scores - \n" + 
+                infoText += "Your Score: " + score;
+                infoText += "\n\n - Player 1 High Scores - \n" + 
                     "1. " + topTenScores[0] + "\n" + 
                     "2. " + topTenScores[1] + "\n" + 
                     "3. " + topTenScores[2] + "\n" + 
@@ -870,7 +922,7 @@ namespace Pong
 
             if (gameOver || gameStart || scored)
             {
-                spriteBatch.DrawString(infoFont, infoText, new Vector2(safeBounds.Left + (safeBounds.Width / 5), safeBounds.Height / 2 - 150), Color.DarkGray);
+                spriteBatch.DrawString(infoFont, infoText, new Vector2(safeBounds.Left + (safeBounds.Width / 5), safeBounds.Height / 2 - 200), Color.CadetBlue);
             }
 
             spriteBatch.End();
