@@ -121,6 +121,8 @@ namespace Pong
         {
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
+
+            Components.Add(new GamerServicesComponent(this));
         }
 
         /// <summary>
@@ -503,6 +505,7 @@ namespace Pong
                         || gamePad2.IsButtonDown(Buttons.A) && !oldGamePadState2.IsButtonDown(Buttons.A))
                     {
                         gameStart = false;
+                        score = 0;
                         MediaPlayer.Play(backgroundMusic);
                     }
                 }
@@ -515,6 +518,7 @@ namespace Pong
                         player1Score = 0;
                         player2Score = 0;
                         gameOver = false;
+                        score = 0;
                         MediaPlayer.Play(backgroundMusic);
                     }
                 }
@@ -686,7 +690,7 @@ namespace Pong
             float yDifference = (player2Position.Y - blockPosition.Y);
             float xDifference = Math.Abs(player2Position.X - blockPosition.X);
 
-            if (xDifference < 225)
+            if (xDifference < 200)
             {
                 if (dirChosen) dirChosen = false;
 
@@ -915,12 +919,26 @@ namespace Pong
                     "9. " + topTenScores[8] + "\n" + 
                     "10. " + topTenScores[9];
             }
+            else if (isPaused)
+            {
+                infoText = "\n\n - Player 1 High Scores - \n" +
+                    "1. " + topTenScores[0] + "\n" +
+                    "2. " + topTenScores[1] + "\n" +
+                    "3. " + topTenScores[2] + "\n" +
+                    "4. " + topTenScores[3] + "\n" +
+                    "5. " + topTenScores[4] + "\n" +
+                    "6. " + topTenScores[5] + "\n" +
+                    "7. " + topTenScores[6] + "\n" +
+                    "8. " + topTenScores[7] + "\n" +
+                    "9. " + topTenScores[8] + "\n" +
+                    "10. " + topTenScores[9];
+            }
             else if (scored)
             {
                 infoText = "Press Spacebar or A to continue.";
             }
 
-            if (gameOver || gameStart || scored)
+            if (gameOver || gameStart || scored || isPaused)
             {
                 spriteBatch.DrawString(infoFont, infoText, new Vector2(safeBounds.Left + (safeBounds.Width / 5), safeBounds.Height / 2 - 200), Color.CadetBlue);
             }
